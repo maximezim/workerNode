@@ -5,11 +5,17 @@ import (
 	"time"
 )
 
+type VideoPacketSIS struct {
+	MsgPackPacket []byte `msgpack:"packet"`
+	A             []byte `msgpack:"a"`
+	V             []byte `msgpack:"v"`
+}
+
 type VideoPacket struct {
-	VideoID      string `json:"video_id"`
-	PacketNumber int    `json:"packet_number"`
-	TotalPackets int    `json:"total_packets"` // Use 0 if unknown
-	Data         []byte `json:"data"`
+	VideoID      string `msgpack:"video_id"`
+	PacketNumber int    `msgpack:"packet_number"`
+	TotalPackets int    `msgpack:"total_packets"` // Use 0 if unknown
+	Data         []byte `msgpack:"data"`
 }
 
 type Video struct {
