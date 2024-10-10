@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -25,54 +23,6 @@ var (
 	mqttPassword      = "zimzimlegoat"
 	dataDirectory     = "./data"
 )
-
-type VideoPacket struct {
-	VideoID      string `json:"video_id"`
-	PacketNumber int    `json:"packet_number"`
-	TotalPackets int    `json:"total_packets"` // Use 0 if unknown
-	Data         []byte `json:"data"`
-}
-
-type Video struct {
-	VideoID          string
-	Packets          map[int][]byte
-	ExpectedPackets  int
-	ReceivedPackets  int
-	LastPacketTime   time.Time
-	AssemblyComplete bool
-	mu               sync.Mutex
-}
-
-type VideoManager struct {
-	videos map[string]*Video
-	mu     sync.Mutex
-}
-
-func NewVideoManager() *VideoManager {
-	return &VideoManager{
-		videos: make(map[string]*Video),
-	}
-}
-
-func (vm *VideoManager) GetVideo(videoID string) *Video {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	video, exists := vm.videos[videoID]
-	if !exists {
-		video = &Video{
-			VideoID: videoID,
-			Packets: make(map[int][]byte),
-		}
-		vm.videos[videoID] = video
-	}
-	return video
-}
-
-func (vm *VideoManager) RemoveVideo(videoID string) {
-	vm.mu.Lock()
-	defer vm.mu.Unlock()
-	delete(vm.videos, videoID)
-}
 
 var videoManager = NewVideoManager()
 
@@ -190,70 +140,6 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 			log.Printf("Error processing packet: %v", err)
 		}
 	}
-}
-
-func processPacket(packet VideoPacket) error {
-	video := videoManager.GetVideo(packet.VideoID)
-	video.mu.Lock()
-	defer video.mu.Unlock()
-
-	// Update last packet time for timeout purposes
-	video.LastPacketTime = time.Now()
-
-	// Store the packet data if it's new
-	if _, exists := video.Packets[packet.PacketNumber]; !exists {
-		video.Packets[packet.PacketNumber] = packet.Data
-		video.ReceivedPackets++
-	}
-
-	// Set the expected total packets if provided
-	if packet.TotalPackets > 0 {
-		video.ExpectedPackets = packet.TotalPackets
-	}
-
-	// Check if all packets have been received
-	if (video.ExpectedPackets > 0 && video.ReceivedPackets == video.ExpectedPackets) ||
-		(video.ExpectedPackets == 0 && time.Since(video.LastPacketTime) > 5*time.Second) {
-		video.AssemblyComplete = true
-		go assembleAndSaveVideo(video)
-	}
-
-	return nil
-}
-
-func assembleAndSaveVideo(video *Video) {
-	video.mu.Lock()
-	defer video.mu.Unlock()
-
-	// Ensure no double assembly
-	if !video.AssemblyComplete {
-		return
-	}
-	video.AssemblyComplete = false // Prevent re-entry
-
-	// Assemble packets in order
-	packetNumbers := make([]int, 0, len(video.Packets))
-	for num := range video.Packets {
-		packetNumbers = append(packetNumbers, num)
-	}
-	sort.Ints(packetNumbers)
-	var videoData []byte
-	for _, num := range packetNumbers {
-		videoData = append(videoData, video.Packets[num]...)
-	}
-
-	// Save videoData to file
-	filename := fmt.Sprintf("%s.mp4", video.VideoID)
-	filepath := filepath.Join(dataDirectory, filename)
-	err := os.WriteFile(filepath, videoData, 0644)
-	if err != nil {
-		log.Printf("Failed to write video to file: %v", err)
-		return
-	}
-	log.Printf("Video saved to %s", filepath)
-
-	// Remove video from manager
-	videoManager.RemoveVideo(video.VideoID)
 }
 
 func generateClientID() string {
