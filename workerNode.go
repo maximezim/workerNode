@@ -92,14 +92,17 @@ func main() {
 	mqttClient := connectToMQTTBroker()
 	defer mqttClient.Disconnect(250)
 
-	wsConn := connectToMasterNode()
-	defer wsConn.Close()
-
-	// Start goroutine to receive data from master node
+	// Handle reconnections to master node
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		receiveDataFromMaster(wsConn)
+		for {
+			wsConn := connectToMasterNode()
+			receiveDataFromMaster(wsConn)
+			wsConn.Close()
+			log.Println("Disconnected from master node, retrying in 5 seconds...")
+			time.Sleep(5 * time.Second)
+		}
 	}()
 
 	// Wait for interrupt signal
@@ -137,13 +140,39 @@ func connectToMasterNode() *websocket.Conn {
 
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatalf("Failed to connect to master node: %v", err)
+		log.Printf("Failed to connect to master node: %v", err)
+		return nil
 	}
 	log.Println("Connected to master node")
+
+	// Receive assigned name
+	workerName, err := receiveAssignedName(conn)
+	if err != nil {
+		log.Printf("Failed to receive worker name: %v", err)
+	} else {
+		log.Printf("Assigned worker name: %s", workerName)
+	}
 	return conn
 }
 
+func receiveAssignedName(conn *websocket.Conn) (string, error) {
+	_, message, err := conn.ReadMessage()
+	if err != nil {
+		return "", err
+	}
+	var data map[string]string
+	err = json.Unmarshal(message, &data)
+	if err != nil {
+		return "", err
+	}
+	return data["worker_name"], nil
+}
+
 func receiveDataFromMaster(conn *websocket.Conn) {
+	if conn == nil {
+		log.Println("Connection to master node is nil")
+		return
+	}
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -183,7 +212,8 @@ func processPacket(packet VideoPacket) error {
 	}
 
 	// Check if all packets have been received
-	if video.ExpectedPackets > 0 && video.ReceivedPackets == video.ExpectedPackets && !video.AssemblyComplete {
+	if (video.ExpectedPackets > 0 && video.ReceivedPackets == video.ExpectedPackets) ||
+		(video.ExpectedPackets == 0 && time.Since(video.LastPacketTime) > 5*time.Second) {
 		video.AssemblyComplete = true
 		go assembleAndSaveVideo(video)
 	}
@@ -196,11 +226,10 @@ func assembleAndSaveVideo(video *Video) {
 	defer video.mu.Unlock()
 
 	// Ensure no double assembly
-	if video.AssemblyComplete {
-		video.AssemblyComplete = false // Prevent re-entry
-	} else {
+	if !video.AssemblyComplete {
 		return
 	}
+	video.AssemblyComplete = false // Prevent re-entry
 
 	// Assemble packets in order
 	packetNumbers := make([]int, 0, len(video.Packets))
