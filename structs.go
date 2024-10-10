@@ -26,3 +26,8 @@ type VideoManager struct {
 	videos map[string]*Video
 	mu     sync.Mutex
 }
+
+type WorkerStats struct {
+	CPUUsage float64 `json:"cpu_usage"`
+	RAMUsage float64 `json:"ram_usage"`
+}
