@@ -12,7 +12,9 @@ import (
 	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	sis "github.com/f7ed0/golang_SIS_LWE"
 	"github.com/gorilla/websocket"
+	"github.com/vmihailenco/msgpack"
 )
 
 var (
@@ -129,13 +131,17 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 			log.Printf("Error reading from master node: %v", err)
 			break
 		}
-		var packet VideoPacket
-		err = json.Unmarshal(message, &packet)
+		var packet VideoPacketSIS
+
+		err = msgpack.Unmarshal(message, &packet)
+
+		videoPacket, err := validateSISpacket(packet)
+
 		if err != nil {
 			log.Printf("Error unmarshalling data: %v", err)
 			continue
 		}
-		err = processPacket(packet)
+		err = processPacket(videoPacket)
 		if err != nil {
 			log.Printf("Error processing packet: %v", err)
 		}
@@ -144,4 +150,46 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 
 func generateClientID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
+}
+
+func validateSISpacket(packetSIS VideoPacketSIS) (VideoPacket, error) {
+	a, err := sis.DeserializeInts(packetSIS.A, sis.Default.M*sis.Default.N)
+	fmt.Printf("Deserialized a %v\n", a)
+
+	if err != nil {
+		fmt.Println("Error deserializing a", err.Error())
+		return VideoPacket{}, err
+	}
+
+	v, err := sis.DeserializeInts(packetSIS.V, sis.Default.N*1)
+	fmt.Printf("Deserialized v\n")
+
+	if err != nil {
+		fmt.Println("Error deserializing v", err.Error())
+		return VideoPacket{}, err
+	}
+
+	ok, err := sis.Default.Validate(packetSIS.MsgPackPacket, a, v)
+	fmt.Printf("Validate\n")
+
+	if err != nil {
+		log.Default().Println(fmt.Sprint("Validation error %s", err.Error()))
+		return VideoPacket{}, err
+	}
+
+	if !ok {
+		return VideoPacket{}, err
+	}
+
+	var packet VideoPacket
+
+	err = msgpack.Unmarshal(packetSIS.MsgPackPacket, &packet)
+	fmt.Printf("Unmarshalled\n")
+
+	if err != nil {
+		fmt.Println("Error unmarshalling packet", err.Error())
+		return VideoPacket{}, err
+	}
+
+	return packet, nil
 }
