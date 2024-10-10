@@ -24,6 +24,9 @@ var (
 	mqttUsername      = "viewer"
 	mqttPassword      = "zimzimlegoat"
 	dataDirectory     = "./data"
+
+	topicPing        = "worker-1-ping"
+	topicWorkerStats = "worker-1-stats"
 )
 
 var videoManager = NewVideoManager()
@@ -65,6 +68,34 @@ func main() {
 	log.Println("Shutdown complete")
 }
 
+func sendStatsToMQTT(client MQTT.Client) {
+	stats, err := getStats()
+	if err != nil {
+		log.Printf("Failed to get worker stats: %v", err)
+		return
+	}
+
+	statsJSON, err := json.Marshal(stats)
+	if err != nil {
+		log.Printf("Failed to marshal worker stats: %v", err)
+		return
+	}
+
+	if token := client.Publish(topicWorkerStats, 0, false, statsJSON); token.Wait() && token.Error() != nil {
+		log.Printf("Failed to publish worker stats: %v", token.Error())
+	}
+}
+
+func subscribeForStats(client MQTT.Client) {
+	if token := client.Subscribe(topicPing, 0, func(c MQTT.Client, m MQTT.Message) {
+		sendStatsToMQTT(client)
+
+	}); token.Wait() && token.Error() != nil {
+		log.Fatalf("Error subscribing to topic %s: %v", topicPing, token.Error())
+	}
+	log.Printf("Subscribed to topic %s", topicPing)
+}
+
 func connectToMQTTBroker() MQTT.Client {
 	opts := MQTT.NewClientOptions()
 	opts.AddBroker(mqttBrokerURI)
@@ -83,6 +114,9 @@ func connectToMQTTBroker() MQTT.Client {
 		log.Fatalf("Error connecting to MQTT broker: %v", token.Error())
 	}
 	log.Println("Connected to MQTT broker")
+
+	subscribeForStats(client)
+
 	return client
 }
 
