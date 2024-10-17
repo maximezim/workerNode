@@ -20,7 +20,7 @@ type VideoPacket struct {
 
 type Video struct {
 	VideoID          string
-	Packets          map[int][]byte
+	Packets          map[int]int64 // Map packet numbers to file offsets
 	ExpectedPackets  int
 	ReceivedPackets  int
 	LastPacketTime   time.Time
