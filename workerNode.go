@@ -105,11 +105,18 @@ func subscribeForPacketeRequest(client MQTT.Client) {
 		// Process packet request
 		// packetRequest := string(m.Payload())
 		// processPacketRequest(packetRequest)
+		packetRequest := PacketRequest{}
+		err := json.Unmarshal(m.Payload(), &packetRequest)
+		if err != nil {
+			log.Printf("Failed to unmarshal packet request: %v", err)
+			return
+		}
+
 		log.Printf("Received packet request: %s", string(m.Payload()))
 	}); token.Wait() && token.Error() != nil {
 		log.Fatalf("Error subscribing to topic %s: %v", packetRequestTopic, token.Error())
 	}
-	log.Printf("Subscribed to topic %s", topicPing)
+	log.Printf("Subscribed to topic %s", packetRequestTopic)
 }
 
 func connectToMQTTBroker() MQTT.Client {
@@ -132,6 +139,7 @@ func connectToMQTTBroker() MQTT.Client {
 	log.Println("Connected to MQTT broker")
 
 	subscribeForStats(client)
+	subscribeForPacketeRequest(client)
 
 	return client
 }

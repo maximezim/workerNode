@@ -37,3 +37,8 @@ type WorkerStats struct {
 	CPUUsage float64 `json:"cpu_usage"`
 	RAMUsage float64 `json:"ram_usage"`
 }
+
+type PacketRequest struct {
+	VideoID      string `json:"video_id"`
+	PacketNumber int    `json:"packet_number"`
+}
