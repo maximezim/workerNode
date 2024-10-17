@@ -57,6 +57,7 @@ func main() {
 	defer mqttClient.Disconnect(250)
 
 	subscribeForStats(mqttClient)
+	subscribeForPacketRequest(mqttClient)
 
 	// Handle data from master node
 	wg.Add(1)
@@ -100,8 +101,9 @@ func subscribeForStats(client MQTT.Client) {
 	log.Printf("Subscribed to topic %s", topicPing)
 }
 
-func subscribeForPacketeRequest(client MQTT.Client) {
+func subscribeForPacketRequest(client MQTT.Client) {
 	if token := client.Subscribe(packetRequestTopic, 0, func(c MQTT.Client, m MQTT.Message) {
+		processPacketRequest(client, m.Payload())
 		// Process packet request
 		// packetRequest := string(m.Payload())
 		// processPacketRequest(packetRequest)
@@ -139,7 +141,7 @@ func connectToMQTTBroker() MQTT.Client {
 	log.Println("Connected to MQTT broker")
 
 	subscribeForStats(client)
-	subscribeForPacketeRequest(client)
+	subscribeForPacketRequest(client)
 
 	return client
 }
