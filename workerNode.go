@@ -141,7 +141,7 @@ func connectToMQTTBroker() MQTT.Client {
 	log.Println("Connected to MQTT broker")
 
 	subscribeForStats(client)
-	subscribeForPacketeRequest(client)
+	subscribeForPacketRequest(client)
 
 	return client
 }
