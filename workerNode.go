@@ -104,9 +104,6 @@ func subscribeForStats(client MQTT.Client) {
 func subscribeForPacketRequest(client MQTT.Client) {
 	if token := client.Subscribe(packetRequestTopic, 0, func(c MQTT.Client, m MQTT.Message) {
 		processPacketRequest(client, m.Payload())
-		// Process packet request
-		// packetRequest := string(m.Payload())
-		// processPacketRequest(packetRequest)
 		packetRequest := PacketRequest{}
 		err := json.Unmarshal(m.Payload(), &packetRequest)
 		if err != nil {
