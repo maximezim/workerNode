@@ -25,8 +25,9 @@ var (
 	mqttPassword      = "zimzimlegoat"
 	dataDirectory     = "./data"
 
-	topicPing        = "worker-1-ping"
-	topicWorkerStats = "worker-1-stats"
+	topicPing          = "worker-1-ping"
+	topicWorkerStats   = "worker-1-stats"
+	packetRequestTopic = "packet-request"
 )
 
 var videoManager = NewVideoManager()
@@ -92,6 +93,19 @@ func subscribeForStats(client MQTT.Client) {
 
 	}); token.Wait() && token.Error() != nil {
 		log.Fatalf("Error subscribing to topic %s: %v", topicPing, token.Error())
+	}
+	log.Printf("Subscribed to topic %s", topicPing)
+}
+
+func subscribeForPacketeRequest(client MQTT.Client) {
+	if token := client.Subscribe(packetRequestTopic, 0, func(c MQTT.Client, m MQTT.Message) {
+		// Process packet request
+		//packetRequest := string(m.Payload())
+		//processPacketRequest(packetRequest)
+		log.Printf("Received packet request: %s", string(m.Payload()))
+
+	}); token.Wait() && token.Error() != nil {
+		log.Fatalf("Error subscribing to topic %s: %v", packetRequestTopic, token.Error())
 	}
 	log.Printf("Subscribed to topic %s", topicPing)
 }
