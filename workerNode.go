@@ -25,9 +25,9 @@ var (
 	mqttPassword      = "zimzimlegoat"
 	dataDirectory     = "./data"
 
-	topicPing          = "worker-1-ping"
-	topicWorkerStats   = "worker-1-stats"
 	packetRequestTopic = "packet-request"
+	topicPing          string
+	topicWorkerStats   string
 )
 
 var videoManager = NewVideoManager()
@@ -45,20 +45,24 @@ func main() {
 
 	var wg sync.WaitGroup
 
+	// Connect to the master node and set topics
+	wsConn := connectToMasterNode()
+
+	if wsConn == nil {
+		log.Fatal("Failed to connect to master node")
+	}
+	defer wsConn.Close()
+
 	mqttClient := connectToMQTTBroker()
 	defer mqttClient.Disconnect(250)
 
-	// Handle reconnections to master node
+	subscribeForStats(mqttClient)
+
+	// Handle data from master node
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for {
-			wsConn := connectToMasterNode()
-			receiveDataFromMaster(wsConn)
-			wsConn.Close()
-			log.Println("Disconnected from master node, retrying in 5 seconds...")
-			time.Sleep(5 * time.Second)
-		}
+		receiveDataFromMaster(wsConn)
 	}()
 
 	// Wait for interrupt signal
@@ -90,7 +94,6 @@ func sendStatsToMQTT(client MQTT.Client) {
 func subscribeForStats(client MQTT.Client) {
 	if token := client.Subscribe(topicPing, 0, func(c MQTT.Client, m MQTT.Message) {
 		sendStatsToMQTT(client)
-
 	}); token.Wait() && token.Error() != nil {
 		log.Fatalf("Error subscribing to topic %s: %v", topicPing, token.Error())
 	}
@@ -151,6 +154,9 @@ func connectToMasterNode() *websocket.Conn {
 		log.Printf("Failed to receive worker name: %v", err)
 	} else {
 		log.Printf("Assigned worker name: %s", workerName)
+		// Set topics based on the assigned worker name
+		topicPing = workerName + "-ping"
+		topicWorkerStats = workerName + "-stats"
 	}
 	return conn
 }
