@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	sis "github.com/f7ed0/golang_SIS_LWE"
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -33,6 +35,11 @@ var (
 var videoManager = NewVideoManager()
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
 	if _, err := os.Stat(dataDirectory); os.IsNotExist(err) {
 		err = os.Mkdir(dataDirectory, os.ModePerm)
 		if err != nil {
@@ -200,6 +207,9 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 		err = msgpack.Unmarshal(message, &packet)
 
 		videoPacket, err := validateSISpacket(packet)
+
+		http.Get(fmt.Sprintf("%s/create?video_id=%s", os.Getenv("API_HOST"), videoPacket.VideoID))
+
 		if err != nil {
 			log.Printf("Error unmarshalling data: %v", err)
 			continue
