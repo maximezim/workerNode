@@ -190,6 +190,7 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 	}
 	for {
 		_, message, err := conn.ReadMessage()
+		fmt.Println("Received message")
 		if err != nil {
 			log.Printf("Error reading from master node: %v", err)
 			break
