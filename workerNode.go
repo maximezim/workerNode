@@ -15,7 +15,6 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	sis "github.com/f7ed0/golang_SIS_LWE"
 	"github.com/gorilla/websocket"
-	"github.com/joho/godotenv"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -35,11 +34,6 @@ var (
 var videoManager = NewVideoManager()
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
-
 	if _, err := os.Stat(dataDirectory); os.IsNotExist(err) {
 		err = os.Mkdir(dataDirectory, os.ModePerm)
 		if err != nil {
