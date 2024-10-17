@@ -18,11 +18,11 @@ import (
 )
 
 var (
-	masterNodeAddress = "0.0.0.0:8080"
-	mqttBrokerURI     = "tcp://remicaulier.fr:1883"
-	mqttClientID      = "worker-node"
-	mqttUsername      = "viewer"
-	mqttPassword      = "zimzimlegoat"
+	masterNodeAddress = os.Getenv("MASTERNODE_URI")
+	mqttBrokerURI     = os.Getenv("BROKER_URI")
+	mqttClientID      = os.Getenv("MQTT_CLIENT_ID")
+	mqttUsername      = os.Getenv("MQTT_USERNAME")
+	mqttPassword      = os.Getenv("MQTT_PASSWORD")
 	dataDirectory     = "./data"
 
 	packetRequestTopic = "packet-request"
@@ -104,6 +104,16 @@ func subscribeForStats(client MQTT.Client) {
 func subscribeForPacketRequest(client MQTT.Client) {
 	if token := client.Subscribe(packetRequestTopic, 0, func(c MQTT.Client, m MQTT.Message) {
 		processPacketRequest(client, m.Payload())
+		// Process packet request
+		// packetRequest := string(m.Payload())
+		// processPacketRequest(packetRequest)
+		packetRequest := PacketRequest{}
+		err := json.Unmarshal(m.Payload(), &packetRequest)
+		if err != nil {
+			log.Printf("Failed to unmarshal packet request: %v", err)
+			return
+		}
+
 		log.Printf("Received packet request: %s", string(m.Payload()))
 	}); token.Wait() && token.Error() != nil {
 		log.Fatalf("Error subscribing to topic %s: %v", packetRequestTopic, token.Error())
@@ -129,6 +139,9 @@ func connectToMQTTBroker() MQTT.Client {
 		log.Fatalf("Error connecting to MQTT broker: %v", token.Error())
 	}
 	log.Println("Connected to MQTT broker")
+
+	subscribeForStats(client)
+	subscribeForPacketeRequest(client)
 
 	return client
 }
@@ -186,7 +199,6 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 		err = msgpack.Unmarshal(message, &packet)
 
 		videoPacket, err := validateSISpacket(packet)
-
 		if err != nil {
 			log.Printf("Error unmarshalling data: %v", err)
 			continue
