@@ -75,7 +75,7 @@ func main() {
 }
 
 func sendStatsToMQTT(client MQTT.Client) {
-	stats, err := getStats()
+	stats, err := getStats(topicWorkerStats)
 	if err != nil {
 		log.Printf("Failed to get worker stats: %v", err)
 		return

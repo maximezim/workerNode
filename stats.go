@@ -7,7 +7,7 @@ import (
 )
 
 // getStats renvoie l'utilisation du CPU (%) et de la RAM (%)
-func getStats() (WorkerStats, error) {
+func getStats(worker string) (WorkerStats, error) {
 
 	ws := WorkerStats{}
 
@@ -16,6 +16,8 @@ func getStats() (WorkerStats, error) {
 	if err != nil {
 		return ws, err
 	}
+
+	ws.WorkerName = worker
 	ws.CPUUsage = cpuPercent[0]
 
 	// 1GB harcodé (osekour)
