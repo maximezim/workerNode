@@ -221,7 +221,7 @@ func generateClientID() string {
 
 func validateSISpacket(packetSIS VideoPacketSIS) (VideoPacket, error) {
 	a, err := sis.DeserializeInts(packetSIS.A, sis.Default.M*sis.Default.N)
-	fmt.Printf("Deserialized a %v\n", a)
+	fmt.Printf("Deserialized a\n")
 
 	if err != nil {
 		fmt.Println("Error deserializing a", err.Error())
