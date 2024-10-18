@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -75,7 +76,7 @@ func main() {
 }
 
 func sendStatsToMQTT(client MQTT.Client) {
-	stats, err := getStats()
+	stats, err := getStats(topicWorkerStats)
 	if err != nil {
 		log.Printf("Failed to get worker stats: %v", err)
 		return
@@ -200,6 +201,9 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 		err = msgpack.Unmarshal(message, &packet)
 
 		videoPacket, err := validateSISpacket(packet)
+
+		http.Get(fmt.Sprintf("%s/create?video_id=%s", os.Getenv("API_HOST"), videoPacket.VideoID))
+
 		if err != nil {
 			log.Printf("Error unmarshalling data: %v", err)
 			continue
@@ -217,7 +221,6 @@ func generateClientID() string {
 
 func validateSISpacket(packetSIS VideoPacketSIS) (VideoPacket, error) {
 	a, err := sis.DeserializeInts(packetSIS.A, sis.Default.M*sis.Default.N)
-	fmt.Printf("Deserialized a %v\n", a)
 
 	if err != nil {
 		fmt.Println("Error deserializing a", err.Error())
@@ -225,7 +228,6 @@ func validateSISpacket(packetSIS VideoPacketSIS) (VideoPacket, error) {
 	}
 
 	v, err := sis.DeserializeInts(packetSIS.V, sis.Default.N*1)
-	fmt.Printf("Deserialized v\n")
 
 	if err != nil {
 		fmt.Println("Error deserializing v", err.Error())
@@ -233,7 +235,7 @@ func validateSISpacket(packetSIS VideoPacketSIS) (VideoPacket, error) {
 	}
 
 	ok, err := sis.Default.Validate(packetSIS.MsgPackPacket, a, v)
-	fmt.Printf("Validate\n")
+	fmt.Printf("Validated\n")
 
 	if err != nil {
 		log.Default().Println(fmt.Sprint("Validation error %s", err.Error()))

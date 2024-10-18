@@ -7,9 +7,10 @@ import (
 )
 
 // getStats renvoie l'utilisation du CPU (%) et de la RAM (%)
-func getStats() (WorkerStats, error) {
+func getStats(worker string) (WorkerStats, error) {
 
 	ws := WorkerStats{}
+	ws.WorkerName = worker
 
 	// Récupérer l'utilisation du CPU (en %)
 	cpuPercent, err := cpu.Percent(1*time.Second, false)
