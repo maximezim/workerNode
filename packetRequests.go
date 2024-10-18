@@ -43,7 +43,7 @@ func processPacketRequest(client MQTT.Client, packetRequestPayload []byte) {
 	}
 
 	// Publish the packet data to the topic videoID-stream
-	topic := fmt.Sprintf("%s-stream", packetRequest.VideoID)
+	topic := packetRequest.ChannelUUID
 	if token := client.Publish(topic, 0, false, packetBytes); token.Wait() && token.Error() != nil {
 		log.Printf("Failed to publish packet data: %v", token.Error())
 	}
