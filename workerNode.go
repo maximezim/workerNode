@@ -202,12 +202,35 @@ func receiveDataFromMaster(conn *websocket.Conn) {
 
 		videoPacket, err := validateSISpacket(packet)
 
-		http.Get(fmt.Sprintf("%s/create?video_id=%s", os.Getenv("API_HOST"), videoPacket.VideoID))
-
 		if err != nil {
 			log.Printf("Error unmarshalling data: %v", err)
 			continue
 		}
+
+		// Check if the video ID is already stored
+		if !videoManager.HasVideo(videoPacket.VideoID) {
+			// Call the API to create the video
+			apiHost := os.Getenv("API_HOST")
+			if apiHost == "" {
+				log.Printf("API_HOST environment variable is not set")
+			} else {
+				apiURL := fmt.Sprintf("%s/create?video_id=%s", apiHost, url.QueryEscape(videoPacket.VideoID))
+				resp, err := http.Get(apiURL)
+				if err != nil {
+					log.Printf("Failed to call create video API for video_id %s: %v", videoPacket.VideoID, err)
+				} else {
+					defer resp.Body.Close()
+					if resp.StatusCode != http.StatusOK {
+						log.Printf("API call to create video_id %s returned status: %s", videoPacket.VideoID, resp.Status)
+					} else {
+						log.Printf("Successfully called API to create video_id %s", videoPacket.VideoID)
+					}
+				}
+			}
+		} else {
+			log.Printf("Video ID %s already exists. Skipping API call.", videoPacket.VideoID)
+		}
+
 		err = processPacket(videoPacket)
 		if err != nil {
 			log.Printf("Error processing packet: %v", err)

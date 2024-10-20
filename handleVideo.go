@@ -85,3 +85,11 @@ func processPacket(packet VideoPacket) error {
 	log.Printf("Packet %d for video %s saved at offset %d", packet.PacketNumber, packet.VideoID, offset)
 	return nil
 }
+
+// HasVideo checks if a video with the given ID exists in the manager.
+func (vm *VideoManager) HasVideo(videoID string) bool {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	_, exists := vm.videos[videoID]
+	return exists
+}
