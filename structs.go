@@ -43,4 +43,5 @@ type PacketRequest struct {
 	VideoID      string `json:"video_id"`
 	PacketNumber int    `json:"packet_number"`
 	ChannelUUID  string `json:"channel_uuid"`
+	IsForwarded  bool   `json:"is_forwarded"`
 }
